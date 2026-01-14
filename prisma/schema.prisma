@@ -47,6 +47,8 @@ model Business {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  name      String
+  lastName  String
   password  String
   role      UserRole
   active    Boolean  @default(true)

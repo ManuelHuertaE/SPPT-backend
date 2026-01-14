@@ -21,6 +21,8 @@ CREATE TABLE "Business" (
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" "UserRole" NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
