@@ -80,8 +80,20 @@ npm run docker:up
 
 Esto:
 
-* Levanta PostgreSQL en Docker
+* Levanta PostgreSQL y de Backend en Docker
 * Expone el puerto **5433** hacia tu máquina
+
+---
+
+### Bajar el entorno
+
+```bash
+npm run docker:down
+```
+
+Esto:
+
+* Baja el entorno de Docker (Backend y PostgreSQL)
 
 ---
 
