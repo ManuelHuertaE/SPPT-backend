@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/* =======================
+   ENUMS
+======================= */
+
+enum UserRole {
+  OWNER
+  EMPLOYEE
+}
+
+enum PointMovementType {
+  EARN
+  REDEEM
+  ADJUST
+}
+
+enum RedemptionStatus {
+  PENDING
+  COMPLETED
+  CANCELED
+}
+
+/* =======================
+   MODELS
+======================= */
+
+model Business {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+
+  users        User[]
+  clients      Client[]
+  transactions Transaction[]
+  rewards      Reward[]
+  pointRules   PointRule[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+
+  transactions Transaction[]
+  redemptions  Redemption[] @relation("AuthorizedRedemptions")
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+
+  transactions   Transaction[]
+  pointMovements PointMovement[]
+  redemptions    Redemption[]
+  qrTokens       QrToken[]
+
+  @@unique([businessId, phone])
+}
+
+model Transaction {
+  id           String   @id @default(uuid())
+  amount       Decimal  @db.Decimal(10, 2)
+  pointsEarned Int
+  canceled     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+
+  client     Client @relation(fields: [clientId], references: [id])
+  clientId   String
+
+  user       User @relation(fields: [userId], references: [id])
+  userId     String
+
+  pointMovements PointMovement[]
+}
+
+model PointMovement {
+  id        String             @id @default(uuid())
+  points    Int
+  type      PointMovementType
+  reason    String
+  createdAt DateTime           @default(now())
+
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
+
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  transactionId String?
+
+  redemption   Redemption? @relation(fields: [redemptionId], references: [id])
+  redemptionId String?
+}
+
+model Reward {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  pointsRequired Int
+  active         Boolean  @default(true)
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+
+  redemptions Redemption[]
+}
+
+model Redemption {
+  id         String            @id @default(uuid())
+  pointsUsed Int
+  status     RedemptionStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
+
+  reward   Reward @relation(fields: [rewardId], references: [id])
+  rewardId String
+
+  authorizedBy   User   @relation("AuthorizedRedemptions", fields: [authorizedById], references: [id])
+  authorizedById String
+
+  pointMovements PointMovement[]
+}
+
+model PointRule {
+  id                    String   @id @default(uuid())
+  pointsPerCurrencyUnit Float
+  minAmount             Float
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+}
+
+model QrToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
+}
