@@ -1,9 +1,10 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 /* =======================
@@ -18,7 +19,9 @@ enum UserRole {
 enum PointMovementType {
   EARN
   REDEEM
-  ADJUST
+  ADJUST_ADD
+  ADJUST_SUB
+  REFUND
 }
 
 enum RedemptionStatus {
@@ -27,25 +30,33 @@ enum RedemptionStatus {
   CANCELED
 }
 
+enum TransactionStatus {
+  COMPLETED
+  CANCELED
+  REFUNDED
+}
+
 /* =======================
    MODELS
 ======================= */
 
 model Business {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   name      String
   status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
 
-  users        User[]
-  clients      Client[]
-  transactions Transaction[]
-  rewards      Reward[]
-  pointRules   PointRule[]
+  users          User[]
+  clients        Client[]
+  transactions   Transaction[]
+  rewards        Reward[]
+  pointRules     PointRule[]
+  pointMovements PointMovement[]
+  products       Product[]
 }
 
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   email     String   @unique
   name      String
   lastName  String
@@ -55,22 +66,24 @@ model User {
   createdAt DateTime @default(now())
 
   business   Business @relation(fields: [businessId], references: [id])
-  businessId String
+  businessId String   @db.Uuid
 
   transactions Transaction[]
   redemptions  Redemption[] @relation("AuthorizedRedemptions")
 }
 
 model Client {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String
-  email     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  phone         String
+  email         String?
+  currentPoints Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   business   Business @relation(fields: [businessId], references: [id])
-  businessId String
+  businessId String   @db.Uuid
 
   transactions   Transaction[]
   pointMovements PointMovement[]
@@ -78,92 +91,156 @@ model Client {
   qrTokens       QrToken[]
 
   @@unique([businessId, phone])
+  @@index([businessId, active])
+}
+
+model Product {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  sku         String?
+  price       Decimal  @db.Decimal(10, 2)
+  pointsValue Int?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.Uuid
+
+  transactionItems TransactionItem[]
+
+  @@index([businessId, active])
+  @@index([businessId, sku])
 }
 
 model Transaction {
-  id           String   @id @default(uuid())
-  amount       Decimal  @db.Decimal(10, 2)
-  pointsEarned Int
-  canceled     Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id          String            @id @default(uuid()) @db.Uuid
+  totalAmount Decimal           @db.Decimal(10, 2)
+  status      TransactionStatus @default(COMPLETED)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   business   Business @relation(fields: [businessId], references: [id])
-  businessId String
+  businessId String   @db.Uuid
 
-  client     Client @relation(fields: [clientId], references: [id])
-  clientId   String
+  client   Client? @relation(fields: [clientId], references: [id])
+  clientId String?  @db.Uuid
 
-  user       User @relation(fields: [userId], references: [id])
-  userId     String
+  user   User @relation(fields: [userId], references: [id])
+  userId String @db.Uuid
 
+  items          TransactionItem[]
   pointMovements PointMovement[]
+
+  @@index([businessId, createdAt])
+  @@index([clientId, createdAt])
+}
+
+model TransactionItem {
+  id           String  @id @default(uuid()) @db.Uuid
+  quantity     Int
+  unitPrice    Decimal @db.Decimal(10, 2)
+  subtotal     Decimal @db.Decimal(10, 2)
+  pointsEarned Int     @default(0)
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transactionId String      @db.Uuid
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId String  @db.Uuid
+
+  @@index([transactionId])
 }
 
 model PointMovement {
-  id        String             @id @default(uuid())
+  id        String            @id @default(uuid()) @db.Uuid
   points    Int
   type      PointMovementType
   reason    String
-  createdAt DateTime           @default(now())
+  createdAt DateTime          @default(now())
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.Uuid
 
   client   Client @relation(fields: [clientId], references: [id])
-  clientId String
+  clientId String @db.Uuid
 
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
-  transactionId String?
+  transactionId String?      @db.Uuid
 
   redemption   Redemption? @relation(fields: [redemptionId], references: [id])
-  redemptionId String?
+  redemptionId String?     @db.Uuid
+
+  @@index([businessId, clientId])
+  @@index([clientId, createdAt])
 }
 
 model Reward {
-  id             String   @id @default(uuid())
+  id             String   @id @default(uuid()) @db.Uuid
   name           String
   description    String?
   pointsRequired Int
+  stock          Int?
   active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   business   Business @relation(fields: [businessId], references: [id])
-  businessId String
+  businessId String   @db.Uuid
 
   redemptions Redemption[]
+
+  @@index([businessId, active])
 }
 
 model Redemption {
-  id         String            @id @default(uuid())
+  id         String           @id @default(uuid()) @db.Uuid
   pointsUsed Int
   status     RedemptionStatus @default(PENDING)
-  createdAt  DateTime          @default(now())
+  createdAt  DateTime         @default(now())
 
   client   Client @relation(fields: [clientId], references: [id])
-  clientId String
+  clientId String @db.Uuid
 
   reward   Reward @relation(fields: [rewardId], references: [id])
-  rewardId String
+  rewardId String @db.Uuid
 
   authorizedBy   User   @relation("AuthorizedRedemptions", fields: [authorizedById], references: [id])
-  authorizedById String
+  authorizedById String @db.Uuid
 
   pointMovements PointMovement[]
+
+  @@index([clientId, status])
+  @@index([status, createdAt])
 }
 
 model PointRule {
-  id                    String   @id @default(uuid())
+  id                    String    @id @default(uuid()) @db.Uuid
+  name                  String?
   pointsPerCurrencyUnit Float
   minAmount             Float
-  active                Boolean  @default(true)
-  createdAt             DateTime @default(now())
+  validFrom             DateTime  @default(now())
+  validUntil            DateTime?
+  active                Boolean   @default(true)
+  createdAt             DateTime  @default(now())
 
   business   Business @relation(fields: [businessId], references: [id])
-  businessId String
+  businessId String   @db.Uuid
+
+  @@index([businessId, active])
 }
 
 model QrToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   token     String   @unique
   expiresAt DateTime
   used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
 
   client   Client @relation(fields: [clientId], references: [id])
-  clientId String
+  clientId String @db.Uuid
+
+  @@index([clientId, used])
 }
