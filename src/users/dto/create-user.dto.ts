@@ -34,4 +34,8 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'El ID de la tienda debe ser un UUID válido' })
   @IsNotEmpty({ message: 'El ID de la tienda es obligatorio' })
   businessId: string;
+
+  @IsUUID('4', { message: 'El ID del usuario solicitante debe ser un UUID válido' })
+  @IsNotEmpty({ message: 'El ID del usuario solicitante es obligatorio' })
+  requestingUserId: string;
 }

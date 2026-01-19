@@ -21,12 +21,8 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(
-    @Body(ValidationPipe) createUserDto: CreateUserDto,
-    // TODO: Replace with actual authenticated user ID from JWT/session
-    @Body('requestingUserId', ParseUUIDPipe) requestingUserId: string,
-  ) {
-    return this.usersService.create(createUserDto, requestingUserId);
+  create(@Body(ValidationPipe) createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto, createUserDto.requestingUserId);
   }
 
   @Get('business/:businessId')
@@ -43,7 +39,6 @@ export class UsersController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
-    // TODO: Replace with actual authenticated user ID from JWT/session
     @Body('requestingUserId', ParseUUIDPipe) requestingUserId: string,
   ) {
     return this.usersService.update(id, updateUserDto, requestingUserId);
@@ -53,7 +48,6 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   deactivate(
     @Param('id', ParseUUIDPipe) id: string,
-    // TODO: Replace with actual authenticated user ID from JWT/session
     @Body('requestingUserId', ParseUUIDPipe) requestingUserId: string,
   ) {
     return this.usersService.deactivate(id, requestingUserId);
