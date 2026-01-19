@@ -1,30 +1,19 @@
-import {
-  IsEmail,
-  IsString,
-  IsBoolean,
-  IsOptional,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsString, IsBoolean, IsOptional } from 'class-validator';
 
 export class UpdateUserDto {
-  @IsEmail({}, { message: 'El correo debe ser válido' })
+  @IsEmail({}, { message: 'Email must be valid' })
   @IsOptional()
   email?: string;
 
-  @IsString({ message: ' El nombre debe ser una cadena de texto' })
+  @IsString({ message: 'Name must be a string' })
   @IsOptional()
   name?: string;
 
-  @IsString({ message: 'El/los apellido(s) debe(n) ser una cadena de texto' })
+  @IsString({ message: 'Last name must be a string' })
   @IsOptional()
   lastName?: string;
 
-  @IsString({ message: 'La contraseña debe ser una cadena de texto' })
-  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
-  @IsOptional()
-  password?: string;
-
-  @IsBoolean({ message: 'El estado debe ser verdadero o falso' })
+  @IsBoolean({ message: 'Active must be a boolean' })
   @IsOptional()
   active?: boolean;
 }
