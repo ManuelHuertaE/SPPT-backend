@@ -21,7 +21,6 @@ async function bootstrap() {
   app.enableCors();
 
   await app.listen(3000);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  console.log(`Application is running on: ${await app.getApplicationUrl()}`);
+  console.log(`Application is running on: http://localhost:3000`);
 }
 bootstrap();
