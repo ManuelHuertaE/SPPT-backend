@@ -5,16 +5,23 @@ import {
   HttpCode, 
   HttpStatus,
   ValidationPipe,
+  UseGuards
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Public } from './decorators/public.decorator';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Roles } from './decorators/roles.decorator';
+import { RolesGuard } from './guards/roles.guard';
+import { UserRole } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body(ValidationPipe) loginDto: LoginDto) {
@@ -25,8 +32,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   changePassword(
     @Body(ValidationPipe) changePasswordDto: ChangePasswordDto,
-    // WIP: Obtener userId del JWT
-    @Body('userId') userId: string,
+    @CurrentUser('id') userId: string,
   ) {
     return this.authService.changePassword(
       userId,
@@ -35,14 +41,14 @@ export class AuthController {
     );
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   resetPassword(
     @Body(ValidationPipe) resetPasswordDto: ResetPasswordDto,
-    // TODO: Get requesting userId from JWT and verify is OWNER
-    @Body('requestingUserId') requestingUserId: string,
+    @CurrentUser('id') requestingUserId: string,
   ) {
-    // TODO: Verify requesting user is OWNER before allowing reset
     return this.authService.resetPassword(
       resetPasswordDto.userId,
       resetPasswordDto.newPassword,

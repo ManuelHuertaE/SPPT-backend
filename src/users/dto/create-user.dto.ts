@@ -30,12 +30,4 @@ export class CreateUserDto {
   @IsEnum(UserRole, { message: 'El rol debe ser OWNER o EMPLOYEE' })
   @IsNotEmpty({ message: 'El rol es obligatorio' })
   role: UserRole;
-
-  @IsUUID('4', { message: 'El ID de la tienda debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'El ID de la tienda es obligatorio' })
-  businessId: string;
-
-  @IsUUID('4', { message: 'El ID del usuario solicitante debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'El ID del usuario solicitante es obligatorio' })
-  requestingUserId: string;
 }

@@ -1,12 +1,18 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { JwtPayload } from './strategies/jwt.strategy';
+import { access } from 'fs';
 
 @Injectable()
 export class AuthService {
   private readonly SALT_ROUNDS = 10;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
 
   /**
    * Hashear contraseña usando bcrypt
@@ -23,6 +29,15 @@ export class AuthService {
     hashedPassword: string,
   ): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  /**
+   * Generar token JWT
+   */
+
+  generateJwtToken(userId: string, email: string, role: string, businessId: string): string {
+    const payload: JwtPayload = { sub: userId, email, role, businessId };
+    return this.jwtService.sign(payload);
   }
 
   /**
@@ -60,11 +75,23 @@ export class AuthService {
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
 
-    // WIP: Generar y retornar token JWT aquí
+    const token = this.generateJwtToken(
+      user.id, 
+      user.email, 
+      user.role, 
+      user.businessId
+    );
+
     return {
-      user,
-      // token
-      message: 'Login exitoso. Token JWT pendiente de implementación.',
+      access_token: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        lastName: user.lastName,
+        role: user.role,
+        businessId: user.businessId,
+      }
     };
   }
 

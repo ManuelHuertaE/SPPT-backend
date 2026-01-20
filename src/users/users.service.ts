@@ -1,71 +1,25 @@
 // src/users/users.service.ts
-import { Injectable, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserRole } from '@prisma/client';
-import { AuthService } from '../auth/auth.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    private prisma: PrismaService,
-    private authService: AuthService, // Inyectar AuthService
-  ) {}
+  private readonly SALT_ROUNDS = 10;
 
-  /**
-   * Crear un nuevo usuario (OWNER or EMPLOYEE)
-   * Solo administradores (OWNER) pueden crear usuarios
-   */
-  async create(createUserDto: CreateUserDto, requestingUserId: string) {
-    // Verificar que el usuario solicitante sea un OWNER
-    const requestingUser = await this.prisma.user.findUnique({
-      where: { id: requestingUserId },
-    });
+  constructor(private prisma: PrismaService) {}
 
-    if (!requestingUser) {
-      throw new NotFoundException('Usuario solicitante no encontrado');
-    }
+  async create(createUserDto: CreateUserDto, businessId: string) {
+    // Hash password
+    const hashedPassword = await bcrypt.hash(createUserDto.password, this.SALT_ROUNDS);
 
-    if (requestingUser.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo los usuarios OWNER pueden crear nuevos usuarios');
-    }
-
-    // Verificar que el negocio exista y que el usuario solicitante pertenezca a él
-    const business = await this.prisma.business.findUnique({
-      where: { id: createUserDto.businessId },
-    });
-
-    if (!business) {
-      throw new NotFoundException('Negocio no encontrado');
-    }
-
-    // Verificar que el usuario solicitante pertenezca al negocio
-    if (requestingUser.businessId !== createUserDto.businessId) {
-      throw new ForbiddenException('Solo puedes crear usuarios para tu propio negocio');
-    }
-
-    // Verificar si el email ya existe
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: createUserDto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email ya está en uso');
-    }
-
-    // Hash contraseña usando AuthService
-    const hashedPassword = await this.authService.hashPassword(createUserDto.password);
-
-    // Crear usuario
     const user = await this.prisma.user.create({
       data: {
-        email: createUserDto.email,
-        name: createUserDto.name,
-        lastName: createUserDto.lastName,
+        ...createUserDto,
         password: hashedPassword,
-        role: createUserDto.role,
-        businessId: createUserDto.businessId,
+        businessId,
       },
       select: {
         id: true,
@@ -76,24 +30,17 @@ export class UsersService {
         active: true,
         createdAt: true,
         businessId: true,
-        business: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     });
 
     return user;
   }
 
-  /**
-   * Encontrar todos los usuarios de un negocio
-   */
   async findAll(businessId: string) {
     return this.prisma.user.findMany({
-      where: { businessId },
+      where: {
+        businessId,
+      },
       select: {
         id: true,
         email: true,
@@ -103,14 +50,13 @@ export class UsersService {
         active: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 
-  /**
-   * Encontrar un usuario por ID
-   */
-  async findOne(id: string) {
+  async findOne(id: string, businessId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -122,13 +68,6 @@ export class UsersService {
         active: true,
         createdAt: true,
         businessId: true,
-        business: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
       },
     });
 
@@ -136,52 +75,29 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
+    // Validar que el usuario pertenezca al mismo negocio
+    if (user.businessId !== businessId) {
+      throw new ForbiddenException('No tienes acceso a este usuario');
+    }
+
     return user;
   }
 
-  /**
-   * Actualizar un usuario (SIN contraseña)
-   */
-  async update(id: string, updateUserDto: UpdateUserDto, requestingUserId: string) {
-    // Verificar que el usuario solicitante sea un OWNER
-    const requestingUser = await this.prisma.user.findUnique({
-      where: { id: requestingUserId },
-    });
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    requestingUserId: string,
+    businessId: string,
+  ) {
+    // Verificar que el usuario a actualizar existe y pertenece al mismo negocio
+    const userToUpdate = await this.findOne(id, businessId);
 
-    if (!requestingUser) {
-      throw new NotFoundException('Usuario solicitante no encontrado');
+    // No permitir que un usuario se desactive a sí mismo
+    if (id === requestingUserId && updateUserDto.active === false) {
+      throw new ForbiddenException('No puedes desactivarte a ti mismo');
     }
 
-    if (requestingUser.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo los usuarios OWNER pueden actualizar usuarios');
-    }
-
-    // Verificar que el usuario exista
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    // Verificar que ambos usuarios pertenezcan al mismo negocio
-    if (requestingUser.businessId !== user.businessId) {
-      throw new ForbiddenException('Solo puedes actualizar usuarios de tu propio negocio');
-    }
-
-    // Si se actualiza el email, verificar que no esté en uso
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: updateUserDto.email },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('Email ya está en uso');
-      }
-    }
-
-    return this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
       select: {
@@ -194,41 +110,20 @@ export class UsersService {
         createdAt: true,
       },
     });
+
+    return updatedUser;
   }
 
-  /**
-   * Desactivar un usuario (eliminación suave)
-   */
-  async deactivate(id: string, requestingUserId: string) {
-    const requestingUser = await this.prisma.user.findUnique({
-      where: { id: requestingUserId },
-    });
-
-    if (!requestingUser) {
-      throw new NotFoundException('Usuario solicitante no encontrado');
-    }
-
-    if (requestingUser.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo los usuarios OWNER pueden desactivar usuarios');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    if (requestingUser.businessId !== user.businessId) {
-      throw new ForbiddenException('Solo puedes desactivar usuarios de tu propio negocio'); 
-    }
-
+  async deactivate(id: string, requestingUserId: string, businessId: string) {
+    // No permitir que un usuario se desactive a sí mismo
     if (id === requestingUserId) {
-      throw new ForbiddenException('No puedes desactivar tu propio usuario');
+      throw new ForbiddenException('No puedes desactivarte a ti mismo');
     }
 
-    return this.prisma.user.update({
+    // Verificar que el usuario existe y pertenece al mismo negocio
+    await this.findOne(id, businessId);
+
+    const user = await this.prisma.user.update({
       where: { id },
       data: { active: false },
       select: {
@@ -236,36 +131,22 @@ export class UsersService {
         email: true,
         name: true,
         lastName: true,
+        role: true,
         active: true,
       },
     });
+
+    return {
+      message: 'Usuario desactivado exitosamente',
+      user,
+    };
   }
 
-  /**
-   * Activar un usuario
-   */
-  async activate(id: string, requestingUserId: string) {
-    const requestingUser = await this.prisma.user.findUnique({
-      where: { id: requestingUserId },
-    });
+  async activate(id: string, requestingUserId: string, businessId: string) {
+    // Verificar que el usuario existe y pertenece al mismo negocio
+    await this.findOne(id, businessId);
 
-    if (!requestingUser || requestingUser.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo los usuarios OWNER pueden activar usuarios');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    if (requestingUser.businessId !== user.businessId) {
-      throw new ForbiddenException('Solo puedes activar usuarios de tu propio negocio');
-    }
-
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id },
       data: { active: true },
       select: {
@@ -273,8 +154,14 @@ export class UsersService {
         email: true,
         name: true,
         lastName: true,
+        role: true,
         active: true,
       },
     });
+
+    return {
+      message: 'Usuario activado exitosamente',
+      user,
+    };
   }
 }
