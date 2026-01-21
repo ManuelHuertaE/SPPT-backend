@@ -10,10 +10,9 @@ export class BusinessService {
 
   /**
    * Crear un nuevo negocio
-   * Solo los usuarios OWNER pueden crear negocios
+   * Solo SUPER_ADMIN y OWNER pueden crear negocios
    */
   async create(createBusinessDto: CreateBusinessDto, requestingUserId: string) {
-    // Verificar que el usuario solicitante exista y sea un OWNER
     const requestingUser = await this.prisma.user.findUnique({
       where: { id: requestingUserId },
     });
@@ -22,8 +21,13 @@ export class BusinessService {
       throw new NotFoundException('Usuario solicitante no encontrado');
     }
 
-    if (requestingUser.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo los usuarios OWNER pueden crear negocios');
+    if (requestingUser.role !== UserRole.SUPER_ADMIN && requestingUser.role !== UserRole.OWNER) {
+      throw new ForbiddenException('No tienes permisos para crear negocios');
+    }
+
+    // Si es OWNER y ya tiene un negocio, no puede crear otro
+    if (requestingUser.role === UserRole.OWNER && requestingUser.businessId) {
+      throw new ForbiddenException('Ya tienes un negocio asignado');
     }
 
     // Crear negocio
@@ -34,14 +38,48 @@ export class BusinessService {
       },
     });
 
+    // Si es OWNER, asignarle automáticamente el negocio creado
+    if (requestingUser.role === UserRole.OWNER) {
+      await this.prisma.user.update({
+        where: { id: requestingUserId },
+        data: { businessId: business.id },
+      });
+    }
+
     return business;
   }
 
   /**
    * Encontrar todos los negocios
+   * SUPER_ADMIN: ve todos los negocios
+   * OWNER: solo ve su propio negocio
+   * EMPLOYEE: solo ve su propio negocio
    */
-  async findAll() {
-    return this.prisma.business.findMany({
+  async findAll(role: UserRole, businessId?: string) {
+    // SUPER_ADMIN ve todos los negocios
+    if (role === UserRole.SUPER_ADMIN) {
+      return this.prisma.business.findMany({
+        include: {
+          _count: {
+            select: {
+              users: true,
+              clients: true,
+              products: true,
+              transactions: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    // OWNER y EMPLOYEE solo ven su propio negocio
+    if (!businessId) {
+      throw new ForbiddenException('No tienes un negocio asignado');
+    }
+
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
       include: {
         _count: {
           select: {
@@ -52,14 +90,30 @@ export class BusinessService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
+
+    if (!business) {
+      throw new NotFoundException('Negocio no encontrado');
+    }
+
+    return [business];
   }
 
   /**
    * Encontrar un negocio por ID
+   * SUPER_ADMIN: puede ver cualquier negocio
+   * OWNER: solo puede ver su propio negocio
+   * EMPLOYEE: solo puede ver su propio negocio
    */
-  async findOne(id: string) {
+  async findOne(id: string, role: UserRole, businessId?: string) {
+    // SUPER_ADMIN puede ver cualquier negocio
+    if (role !== UserRole.SUPER_ADMIN) {
+      // OWNER y EMPLOYEE solo pueden ver su propio negocio
+      if (!businessId || id !== businessId) {
+        throw new ForbiddenException('No tienes acceso a este negocio');
+      }
+    }
+
     const business = await this.prisma.business.findUnique({
       where: { id },
       include: {
@@ -96,9 +150,10 @@ export class BusinessService {
 
   /**
    * Actualizar un negocio
+   * SUPER_ADMIN: puede actualizar cualquier negocio
+   * OWNER: solo puede actualizar su propio negocio
    */
   async update(id: string, updateBusinessDto: UpdateBusinessDto, requestingUserId: string) {
-    // Verificar que el usuario solicitante sea un OWNER
     const requestingUser = await this.prisma.user.findUnique({
       where: { id: requestingUserId },
     });
@@ -107,8 +162,9 @@ export class BusinessService {
       throw new NotFoundException('Usuario solicitante no encontrado');
     }
 
-    if (requestingUser.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo los usuarios OWNER pueden actualizar negocios');
+    // Solo SUPER_ADMIN y OWNER pueden actualizar
+    if (requestingUser.role !== UserRole.SUPER_ADMIN && requestingUser.role !== UserRole.OWNER) {
+      throw new ForbiddenException('No tienes permisos para actualizar negocios');
     }
 
     // Verificar que el negocio exista
@@ -120,8 +176,8 @@ export class BusinessService {
       throw new NotFoundException('Negocio no encontrado');
     }
 
-    // Opcional: Verificar que el usuario solicitante pertenezca al negocio que intenta actualizar
-    if (requestingUser.businessId !== id) {
+    // Si es OWNER, verificar que sea su propio negocio
+    if (requestingUser.role === UserRole.OWNER && requestingUser.businessId !== id) {
       throw new ForbiddenException('Solo puedes actualizar tu propio negocio');
     }
 
@@ -133,8 +189,19 @@ export class BusinessService {
 
   /**
    * Obtener estadísticas del negocio
+   * SUPER_ADMIN: puede ver estadísticas de cualquier negocio
+   * OWNER: solo puede ver estadísticas de su propio negocio
+   * EMPLOYEE: solo puede ver estadísticas de su propio negocio
    */
-  async getStats(id: string) {
+  async getStats(id: string, role: UserRole, businessId?: string) {
+    // SUPER_ADMIN puede ver cualquier negocio
+    if (role !== UserRole.SUPER_ADMIN) {
+      // OWNER y EMPLOYEE solo pueden ver su propio negocio
+      if (!businessId || id !== businessId) {
+        throw new ForbiddenException('No tienes acceso a este negocio');
+      }
+    }
+
     const business = await this.prisma.business.findUnique({
       where: { id },
     });

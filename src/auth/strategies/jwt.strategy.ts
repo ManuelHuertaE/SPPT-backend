@@ -1,14 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { last } from 'rxjs';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 export interface JwtPayload {
     sub: string;
     email: string;
     role: string;
-    businessId: string;
+    businessId?: string; // Opcional para SUPER_ADMIN
 }
 
 @Injectable()
@@ -30,14 +29,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
 
         if (!user || !user.active) {
-            throw new UnauthorizedException('Uusario no válido o inactivo');
+            throw new UnauthorizedException('Usuario no válido o inactivo');
         }
 
         return {
             id: user.id,
             email: user.email,
             role: user.role,
-            businessId: user.businessId,
+            businessId: user.businessId, // Puede ser null para SUPER_ADMIN
             name: user.name,
             lastname: user.lastName,
         }

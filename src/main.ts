@@ -1,6 +1,7 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,6 +20,8 @@ async function bootstrap() {
 
   // Enable CORS if needed
   app.enableCors();
+
+  app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
 
   await app.listen(3000);
   console.log(`Application is running on: http://localhost:3000`);

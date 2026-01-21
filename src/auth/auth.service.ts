@@ -79,7 +79,7 @@ export class AuthService {
       user.id, 
       user.email, 
       user.role, 
-      user.businessId
+      user.businessId || ''
     );
 
     return {

@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import 'dotenv/config'; // ← Agregar esta línea al inicio
+import 'dotenv/config';
 import { PrismaClient, UserRole } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -14,51 +14,152 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('🌱 Starting seed...');
-  console.log('📍 Database URL:', process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@')); // Log sin mostrar password
+  console.log('📍 Database URL:', process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@'));
 
-  let business = await prisma.business.findFirst();
+  // ========== CREAR SUPER_ADMIN ==========
+  const existingSuperAdmin = await prisma.user.findUnique({
+    where: { email: 'superadmin@sppt.com' },
+  });
 
-  if (!business) {
-    business = await prisma.business.create({
+  if (!existingSuperAdmin) {
+    const superAdminPassword = await bcrypt.hash('SuperAdmin123!', 10);
+
+    await prisma.user.create({
+      data: {
+        email: 'superadmin@sppt.com',
+        name: 'Super',
+        lastName: 'Admin',
+        password: superAdminPassword,
+        role: UserRole.SUPER_ADMIN,
+        active: true,
+        // businessId es null
+      },
+    });
+    console.log('✅ SUPER_ADMIN created: superadmin@sppt.com / SuperAdmin123!');
+  } else {
+    console.log('ℹ️ SUPER_ADMIN already exists');
+  }
+
+  // ========== CREAR OWNER SIN NEGOCIO (creado por SUPER_ADMIN) ==========
+  const existingOwnerWithoutBusiness = await prisma.user.findUnique({
+    where: { email: 'owner@example.com' },
+  });
+
+  if (!existingOwnerWithoutBusiness) {
+    const ownerPassword = await bcrypt.hash('owner123', 10);
+
+    await prisma.user.create({
+      data: {
+        email: 'owner@example.com',
+        name: 'John',
+        lastName: 'Owner',
+        password: ownerPassword,
+        role: UserRole.OWNER,
+        active: true,
+        // businessId es null (debe crear su negocio)
+      },
+    });
+    console.log('✅ OWNER (sin negocio) created: owner@example.com / owner123');
+  } else {
+    console.log('ℹ️ OWNER (sin negocio) already exists');
+  }
+
+  // ========== CREAR NEGOCIO DEMO ==========
+  let demoBusiness = await prisma.business.findFirst({
+    where: { name: 'Demo Business' },
+  });
+
+  if (!demoBusiness) {
+    demoBusiness = await prisma.business.create({
       data: {
         name: 'Demo Business',
         status: 'ACTIVE',
       },
     });
-    console.log('✅ Business created:', business.name);
+    console.log('✅ Demo Business created');
   } else {
-    console.log('ℹ️ Business already exists:', business.name);
+    console.log('ℹ️ Demo Business already exists');
   }
 
-  const existingOwner = await prisma.user.findUnique({
+  // ========== CREAR OWNER CON NEGOCIO (para testing) ==========
+  const existingOwnerWithBusiness = await prisma.user.findUnique({
     where: { email: 'admin@example.com' },
   });
 
-  if (!existingOwner) {
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+  if (!existingOwnerWithBusiness) {
+    const ownerPassword = await bcrypt.hash('admin123', 10);
 
-    const owner = await prisma.user.create({
+    await prisma.user.create({
       data: {
         email: 'admin@example.com',
         name: 'Admin',
         lastName: 'Owner',
-        password: hashedPassword,
+        password: ownerPassword,
         role: UserRole.OWNER,
-        businessId: business.id,
+        businessId: demoBusiness.id,
         active: true,
       },
     });
-
-    console.log('✅ Owner user created!');
-    console.log('📧 Email:', owner.email);
-    console.log('🔑 Password: admin123');
-    console.log('🆔 User ID:', owner.id);
-    console.log('🏢 Business ID:', business.id);
+    console.log('✅ OWNER (con negocio) created: admin@example.com / admin123');
   } else {
-    console.log('ℹ️ Owner user already exists:', existingOwner.email);
+    console.log('ℹ️ OWNER (con negocio) already exists');
   }
 
-  console.log('\n🎉 Seed completed successfully!');
+  // ========== CREAR CO-OWNER (otro OWNER del mismo negocio) ==========
+  const existingCoOwner = await prisma.user.findUnique({
+    where: { email: 'coowner@example.com' },
+  });
+
+  if (!existingCoOwner) {
+    const coOwnerPassword = await bcrypt.hash('coowner123', 10);
+
+    await prisma.user.create({
+      data: {
+        email: 'coowner@example.com',
+        name: 'Jane',
+        lastName: 'CoOwner',
+        password: coOwnerPassword,
+        role: UserRole.OWNER,
+        businessId: demoBusiness.id,
+        active: true,
+      },
+    });
+    console.log('✅ CO-OWNER created: coowner@example.com / coowner123');
+  } else {
+    console.log('ℹ️ CO-OWNER already exists');
+  }
+
+  // ========== CREAR EMPLOYEE ==========
+  const existingEmployee = await prisma.user.findUnique({
+    where: { email: 'employee@example.com' },
+  });
+
+  if (!existingEmployee) {
+    const employeePassword = await bcrypt.hash('employee123', 10);
+
+    await prisma.user.create({
+      data: {
+        email: 'employee@example.com',
+        name: 'Mike',
+        lastName: 'Employee',
+        password: employeePassword,
+        role: UserRole.EMPLOYEE,
+        businessId: demoBusiness.id,
+        active: true,
+      },
+    });
+    console.log('✅ EMPLOYEE created: employee@example.com / employee123');
+  } else {
+    console.log('ℹ️ EMPLOYEE already exists');
+  }
+
+  console.log('\n🎉 Seed completed!');
+  console.log('\n📋 Usuarios creados:');
+  console.log('   🌟 SUPER_ADMIN: superadmin@sppt.com / SuperAdmin123!');
+  console.log('   👑 OWNER (sin negocio): owner@example.com / owner123');
+  console.log('   👑 OWNER (Demo Business): admin@example.com / admin123');
+  console.log('   👑 CO-OWNER (Demo Business): coowner@example.com / coowner123');
+  console.log('   👤 EMPLOYEE (Demo Business): employee@example.com / employee123');
 }
 
 main()

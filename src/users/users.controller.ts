@@ -11,7 +11,6 @@ import {
   ValidationPipe,
   ParseUUIDPipe,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -25,67 +24,75 @@ import { UserRole } from '@prisma/client';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Solo OWNER puede crear usuarios
+  // SUPER_ADMIN y OWNER pueden crear usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
   @Post()
   create(
     @Body(ValidationPipe) createUserDto: CreateUserDto,
-    @CurrentUser('businessId') businessId: string,
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('businessId') businessId?: string,
   ) {
-    return this.usersService.create(createUserDto, businessId);
+    return this.usersService.create(createUserDto, role, businessId);
   }
 
-  // Ambos roles pueden listar usuarios de su negocio
+  // Todos los roles pueden listar usuarios
   @Get()
-  findAll(@CurrentUser('businessId') businessId: string) {
-    return this.usersService.findAll(businessId);
+  findAll(
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('businessId') businessId?: string,
+  ) {
+    return this.usersService.findAll(role, businessId);
   }
 
-  // Ambos roles pueden ver un usuario específico (se valida que sea del mismo negocio en el service)
+  // Todos los roles pueden ver un usuario específico
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('businessId') businessId: string,
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('businessId') businessId?: string,
   ) {
-    return this.usersService.findOne(id, businessId);
+    return this.usersService.findOne(id, role, businessId);
   }
 
-  // Solo OWNER puede actualizar usuarios
+  // SUPER_ADMIN y OWNER pueden actualizar usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
     @CurrentUser('id') requestingUserId: string,
-    @CurrentUser('businessId') businessId: string,
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('businessId') businessId?: string,
   ) {
-    return this.usersService.update(id, updateUserDto, requestingUserId, businessId);
+    return this.usersService.update(id, updateUserDto, requestingUserId, role, businessId);
   }
 
-  // Solo OWNER puede desactivar usuarios
+  // SUPER_ADMIN y OWNER pueden desactivar usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   deactivate(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') requestingUserId: string,
-    @CurrentUser('businessId') businessId: string,
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('businessId') businessId?: string,
   ) {
-    return this.usersService.deactivate(id, requestingUserId, businessId);
+    return this.usersService.deactivate(id, requestingUserId, role, businessId);
   }
 
-  // Solo OWNER puede activar usuarios
+  // SUPER_ADMIN y OWNER pueden activar usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
   @Patch(':id/activate')
   activate(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') requestingUserId: string,
-    @CurrentUser('businessId') businessId: string,
+    @CurrentUser('role') role: UserRole,
+    @CurrentUser('businessId') businessId?: string,
   ) {
-    return this.usersService.activate(id, requestingUserId, businessId);
+    return this.usersService.activate(id, requestingUserId, role, businessId);
   }
 }
