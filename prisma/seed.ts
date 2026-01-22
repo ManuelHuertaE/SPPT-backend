@@ -32,7 +32,6 @@ async function main() {
         password: superAdminPassword,
         role: UserRole.SUPER_ADMIN,
         active: true,
-        // businessId es null
       },
     });
     console.log('✅ SUPER_ADMIN created: superadmin@sppt.com / SuperAdmin123!');
@@ -40,7 +39,7 @@ async function main() {
     console.log('ℹ️ SUPER_ADMIN already exists');
   }
 
-  // ========== CREAR OWNER SIN NEGOCIO (creado por SUPER_ADMIN) ==========
+  // ========== CREAR OWNER SIN NEGOCIO ==========
   const existingOwnerWithoutBusiness = await prisma.user.findUnique({
     where: { email: 'owner@example.com' },
   });
@@ -56,7 +55,6 @@ async function main() {
         password: ownerPassword,
         role: UserRole.OWNER,
         active: true,
-        // businessId es null (debe crear su negocio)
       },
     });
     console.log('✅ OWNER (sin negocio) created: owner@example.com / owner123');
@@ -81,7 +79,7 @@ async function main() {
     console.log('ℹ️ Demo Business already exists');
   }
 
-  // ========== CREAR OWNER CON NEGOCIO (para testing) ==========
+  // ========== CREAR OWNER CON NEGOCIO ==========
   const existingOwnerWithBusiness = await prisma.user.findUnique({
     where: { email: 'admin@example.com' },
   });
@@ -105,7 +103,7 @@ async function main() {
     console.log('ℹ️ OWNER (con negocio) already exists');
   }
 
-  // ========== CREAR CO-OWNER (otro OWNER del mismo negocio) ==========
+  // ========== CREAR CO-OWNER ==========
   const existingCoOwner = await prisma.user.findUnique({
     where: { email: 'coowner@example.com' },
   });
@@ -119,14 +117,14 @@ async function main() {
         name: 'Jane',
         lastName: 'CoOwner',
         password: coOwnerPassword,
-        role: UserRole.OWNER,
+        role: UserRole.CO_OWNER,
         businessId: demoBusiness.id,
         active: true,
       },
     });
-    console.log('✅ CO-OWNER created: coowner@example.com / coowner123');
+    console.log('✅ CO_OWNER created: coowner@example.com / coowner123');
   } else {
-    console.log('ℹ️ CO-OWNER already exists');
+    console.log('ℹ️ CO_OWNER already exists');
   }
 
   // ========== CREAR EMPLOYEE ==========
@@ -158,7 +156,7 @@ async function main() {
   console.log('   🌟 SUPER_ADMIN: superadmin@sppt.com / SuperAdmin123!');
   console.log('   👑 OWNER (sin negocio): owner@example.com / owner123');
   console.log('   👑 OWNER (Demo Business): admin@example.com / admin123');
-  console.log('   👑 CO-OWNER (Demo Business): coowner@example.com / coowner123');
+  console.log('   🤝 CO_OWNER (Demo Business): coowner@example.com / coowner123');
   console.log('   👤 EMPLOYEE (Demo Business): employee@example.com / employee123');
 }
 

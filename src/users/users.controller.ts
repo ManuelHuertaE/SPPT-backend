@@ -24,9 +24,9 @@ import { UserRole } from '@prisma/client';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // SUPER_ADMIN y OWNER pueden crear usuarios
+  // SUPER_ADMIN, OWNER y CO_OWNER pueden crear usuarios (con validaciones en el service)
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
   @Post()
   create(
     @Body(ValidationPipe) createUserDto: CreateUserDto,
@@ -55,9 +55,9 @@ export class UsersController {
     return this.usersService.findOne(id, role, businessId);
   }
 
-  // SUPER_ADMIN y OWNER pueden actualizar usuarios
+  // SUPER_ADMIN, OWNER y CO_OWNER pueden actualizar usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -69,9 +69,9 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto, requestingUserId, role, businessId);
   }
 
-  // SUPER_ADMIN y OWNER pueden desactivar usuarios
+  // SUPER_ADMIN, OWNER y CO_OWNER pueden desactivar usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   deactivate(
@@ -83,9 +83,9 @@ export class UsersController {
     return this.usersService.deactivate(id, requestingUserId, role, businessId);
   }
 
-  // SUPER_ADMIN y OWNER pueden activar usuarios
+  // SUPER_ADMIN, OWNER y CO_OWNER pueden activar usuarios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
   @Patch(':id/activate')
   activate(
     @Param('id', ParseUUIDPipe) id: string,

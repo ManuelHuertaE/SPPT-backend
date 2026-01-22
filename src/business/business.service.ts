@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
@@ -52,8 +52,7 @@ export class BusinessService {
   /**
    * Encontrar todos los negocios
    * SUPER_ADMIN: ve todos los negocios
-   * OWNER: solo ve su propio negocio
-   * EMPLOYEE: solo ve su propio negocio
+   * OWNER/CO_OWNER/EMPLOYEE: solo ve su propio negocio
    */
   async findAll(role: UserRole, businessId?: string) {
     // SUPER_ADMIN ve todos los negocios
@@ -73,7 +72,7 @@ export class BusinessService {
       });
     }
 
-    // OWNER y EMPLOYEE solo ven su propio negocio
+    // OWNER, CO_OWNER y EMPLOYEE solo ven su propio negocio
     if (!businessId) {
       throw new ForbiddenException('No tienes un negocio asignado');
     }
@@ -102,13 +101,12 @@ export class BusinessService {
   /**
    * Encontrar un negocio por ID
    * SUPER_ADMIN: puede ver cualquier negocio
-   * OWNER: solo puede ver su propio negocio
-   * EMPLOYEE: solo puede ver su propio negocio
+   * OWNER/CO_OWNER/EMPLOYEE: solo puede ver su propio negocio
    */
   async findOne(id: string, role: UserRole, businessId?: string) {
     // SUPER_ADMIN puede ver cualquier negocio
     if (role !== UserRole.SUPER_ADMIN) {
-      // OWNER y EMPLOYEE solo pueden ver su propio negocio
+      // Los demás solo pueden ver su propio negocio
       if (!businessId || id !== businessId) {
         throw new ForbiddenException('No tienes acceso a este negocio');
       }
@@ -151,7 +149,7 @@ export class BusinessService {
   /**
    * Actualizar un negocio
    * SUPER_ADMIN: puede actualizar cualquier negocio
-   * OWNER: solo puede actualizar su propio negocio
+   * OWNER/CO_OWNER: solo puede actualizar su propio negocio
    */
   async update(id: string, updateBusinessDto: UpdateBusinessDto, requestingUserId: string) {
     const requestingUser = await this.prisma.user.findUnique({
@@ -162,8 +160,12 @@ export class BusinessService {
       throw new NotFoundException('Usuario solicitante no encontrado');
     }
 
-    // Solo SUPER_ADMIN y OWNER pueden actualizar
-    if (requestingUser.role !== UserRole.SUPER_ADMIN && requestingUser.role !== UserRole.OWNER) {
+    // Solo SUPER_ADMIN, OWNER y CO_OWNER pueden actualizar
+    if (
+      requestingUser.role !== UserRole.SUPER_ADMIN && 
+      requestingUser.role !== UserRole.OWNER && 
+      requestingUser.role !== UserRole.CO_OWNER
+    ) {
       throw new ForbiddenException('No tienes permisos para actualizar negocios');
     }
 
@@ -176,8 +178,8 @@ export class BusinessService {
       throw new NotFoundException('Negocio no encontrado');
     }
 
-    // Si es OWNER, verificar que sea su propio negocio
-    if (requestingUser.role === UserRole.OWNER && requestingUser.businessId !== id) {
+    // Si no es SUPER_ADMIN, verificar que sea su propio negocio
+    if (requestingUser.role !== UserRole.SUPER_ADMIN && requestingUser.businessId !== id) {
       throw new ForbiddenException('Solo puedes actualizar tu propio negocio');
     }
 
@@ -190,13 +192,12 @@ export class BusinessService {
   /**
    * Obtener estadísticas del negocio
    * SUPER_ADMIN: puede ver estadísticas de cualquier negocio
-   * OWNER: solo puede ver estadísticas de su propio negocio
-   * EMPLOYEE: solo puede ver estadísticas de su propio negocio
+   * OWNER/CO_OWNER/EMPLOYEE: solo puede ver estadísticas de su propio negocio
    */
   async getStats(id: string, role: UserRole, businessId?: string) {
     // SUPER_ADMIN puede ver cualquier negocio
     if (role !== UserRole.SUPER_ADMIN) {
-      // OWNER y EMPLOYEE solo pueden ver su propio negocio
+      // Los demás solo pueden ver su propio negocio
       if (!businessId || id !== businessId) {
         throw new ForbiddenException('No tienes acceso a este negocio');
       }

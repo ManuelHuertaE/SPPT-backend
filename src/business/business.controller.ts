@@ -64,9 +64,9 @@ export class BusinessController {
     return this.businessService.getStats(id, role, businessId);
   }
 
-  // SUPER_ADMIN y OWNER pueden actualizar negocios
+  // SUPER_ADMIN, OWNER y CO_OWNER pueden actualizar negocios
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
