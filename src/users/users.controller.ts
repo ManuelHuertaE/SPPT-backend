@@ -24,6 +24,12 @@ import { UserRole } from '@prisma/client';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // Obtener perfil del usuario actual
+  @Get('me')
+  getProfile(@CurrentUser('id') userId: string){
+    return this.usersService.getProfile(userId);
+  }
+
   // SUPER_ADMIN, OWNER y CO_OWNER pueden crear usuarios (con validaciones en el service)
   @UseGuards(RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
