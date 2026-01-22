@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Roles } from './decorators/roles.decorator';
@@ -28,6 +29,19 @@ export class AuthController {
     return this.authService.login(loginDto.email, loginDto.password);
   }
 
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refreshToken(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(refreshTokenDto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  logout(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto) {
+    return this.authService.logout(refreshTokenDto.refreshToken);
+  }
+
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   changePassword(
@@ -42,16 +56,21 @@ export class AuthController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   resetPassword(
     @Body(ValidationPipe) resetPasswordDto: ResetPasswordDto,
-    @CurrentUser('id') requestingUserId: string,
   ) {
     return this.authService.resetPassword(
       resetPasswordDto.userId,
       resetPasswordDto.newPassword,
     );
+  }
+
+  @Post('revoke-all-sessions')
+  @HttpCode(HttpStatus.OK)
+  revokeAllSessions(@CurrentUser('id') userId: string) {
+    return this.authService.revokeAllUserTokens(userId);
   }
 }

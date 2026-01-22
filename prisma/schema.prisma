@@ -68,12 +68,12 @@ model User {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  // businessId es opcional solo para SUPER_ADMIN y OWNER sin negocio
   business   Business? @relation(fields: [businessId], references: [id])
   businessId String?   @db.Uuid
 
-  transactions Transaction[]
-  redemptions  Redemption[] @relation("AuthorizedRedemptions")
+  transactions  Transaction[]
+  redemptions   Redemption[] @relation("AuthorizedRedemptions")
+  refreshTokens RefreshToken[] // 👈 Agregar esta línea
 }
 
 model Client {
@@ -247,4 +247,18 @@ model QrToken {
   clientId String @db.Uuid
 
   @@index([clientId, used])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @db.Uuid
+
+  @@index([userId])
+  @@index([token])
 }
