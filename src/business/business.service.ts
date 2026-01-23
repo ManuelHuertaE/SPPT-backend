@@ -62,7 +62,7 @@ export class BusinessService {
           _count: {
             select: {
               users: true,
-              clients: true,
+              clientBusinesses: true,
               products: true,
               transactions: true,
             },
@@ -83,7 +83,7 @@ export class BusinessService {
         _count: {
           select: {
             users: true,
-            clients: true,
+            clientBusinesses: true, 
             products: true,
             transactions: true,
           },
@@ -129,7 +129,7 @@ export class BusinessService {
         },
         _count: {
           select: {
-            clients: true,
+            clientBusinesses: true, 
             transactions: true,
             products: true,
             rewards: true,
@@ -225,8 +225,11 @@ export class BusinessService {
     ] = await Promise.all([
       this.prisma.user.count({ where: { businessId: id } }),
       this.prisma.user.count({ where: { businessId: id, active: true } }),
-      this.prisma.client.count({ where: { businessId: id } }),
-      this.prisma.client.count({ where: { businessId: id, active: true } }),
+      
+
+      this.prisma.clientBusiness.count({ where: { businessId: id } }),
+      this.prisma.clientBusiness.count({ where: { businessId: id, active: true } }),
+      
       this.prisma.product.count({ where: { businessId: id } }),
       this.prisma.product.count({ where: { businessId: id, active: true } }),
       this.prisma.transaction.count({ where: { businessId: id } }),

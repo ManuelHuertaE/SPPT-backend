@@ -22,6 +22,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
             return true;
         }
 
+        //Ignorar rutas de clientes (dejar que JwtClientAuthGuard las maneje)
+        const request = context.switchToHttp().getRequest();
+        if (request.url.startsWith('/clients')) {
+            return true; // Dejar pasar, el JwtClientAuthGuard lo manejará
+        }
+
         return super.canActivate(context);
     }
 }
