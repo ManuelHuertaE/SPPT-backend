@@ -5,19 +5,21 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '@prisma/client';
+import { AuthService } from 'src/auth/auth.service';
 
 @Injectable()
 export class UsersService {
-  private readonly SALT_ROUNDS = 10;
-
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authService: AuthService,
+  ) {}
 
   async create(createUserDto: CreateUserDto, role: UserRole, businessId?: string) {
     // Validar permisos según quien crea y qué rol se está creando
     await this.validateUserCreation(role, createUserDto.role, businessId);
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(createUserDto.password, this.SALT_ROUNDS);
+    const hashedPassword = await this.authService.hashPassword(createUserDto.password);
 
     // Determinar businessId del nuevo usuario
     const userBusinessId = await this.determineBusinessId(role, createUserDto.role, businessId);
