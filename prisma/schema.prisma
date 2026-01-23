@@ -49,13 +49,13 @@ model Business {
   status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
 
-  users          User[]
-  clients        Client[]
-  transactions   Transaction[]
-  rewards        Reward[]
-  pointRules     PointRule[]
-  pointMovements PointMovement[]
-  products       Product[]
+  users            User[]
+  clientBusinesses ClientBusiness[]
+  transactions     Transaction[]
+  rewards          Reward[]
+  pointRules       PointRule[]
+  pointMovements   PointMovement[]
+  products         Product[]
 }
 
 model User {
@@ -73,29 +73,45 @@ model User {
 
   transactions  Transaction[]
   redemptions   Redemption[] @relation("AuthorizedRedemptions")
-  refreshTokens RefreshToken[] // 👈 Agregar esta línea
+  refreshTokens RefreshToken[]
 }
 
 model Client {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  phone     String   @unique //  Teléfono único global
+  email     String?  @unique //  Email único si existe
+  password  String  //  Contraseña para login (opcional si solo usa QR)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación muchos a muchos con Business
+  clientBusinesses ClientBusiness[]
+  qrTokens         QrToken[]
+  refreshTokens    ClientRefreshToken[]
+}
+
+model ClientBusiness {
   id            String   @id @default(uuid()) @db.Uuid
-  name          String
-  phone         String
-  email         String?
   currentPoints Int      @default(0)
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  business   Business @relation(fields: [businessId], references: [id])
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String @db.Uuid
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   businessId String   @db.Uuid
 
   transactions   Transaction[]
   pointMovements PointMovement[]
   redemptions    Redemption[]
-  qrTokens       QrToken[]
 
-  @@unique([businessId, phone])
+  @@unique([clientId, businessId])
   @@index([businessId, active])
+  @@index([clientId, active])
 }
 
 model Product {
@@ -129,17 +145,17 @@ model Transaction {
   business   Business @relation(fields: [businessId], references: [id])
   businessId String   @db.Uuid
 
-  client   Client? @relation(fields: [clientId], references: [id])
-  clientId String?  @db.Uuid
+  clientBusiness   ClientBusiness? @relation(fields: [clientBusinessId], references: [id])
+  clientBusinessId String?         @db.Uuid
 
-  user   User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
   userId String @db.Uuid
 
   items          TransactionItem[]
   pointMovements PointMovement[]
 
   @@index([businessId, createdAt])
-  @@index([clientId, createdAt])
+  @@index([clientBusinessId, createdAt])
 }
 
 model TransactionItem {
@@ -168,8 +184,8 @@ model PointMovement {
   business   Business @relation(fields: [businessId], references: [id])
   businessId String   @db.Uuid
 
-  client   Client @relation(fields: [clientId], references: [id])
-  clientId String @db.Uuid
+  clientBusiness   ClientBusiness @relation(fields: [clientBusinessId], references: [id])
+  clientBusinessId String         @db.Uuid
 
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
   transactionId String?      @db.Uuid
@@ -177,8 +193,8 @@ model PointMovement {
   redemption   Redemption? @relation(fields: [redemptionId], references: [id])
   redemptionId String?     @db.Uuid
 
-  @@index([businessId, clientId])
-  @@index([clientId, createdAt])
+  @@index([businessId, clientBusinessId])
+  @@index([clientBusinessId, createdAt])
 }
 
 model Reward {
@@ -204,8 +220,8 @@ model Redemption {
   status     RedemptionStatus @default(PENDING)
   createdAt  DateTime         @default(now())
 
-  client   Client @relation(fields: [clientId], references: [id])
-  clientId String @db.Uuid
+  clientBusiness   ClientBusiness @relation(fields: [clientBusinessId], references: [id])
+  clientBusinessId String         @db.Uuid
 
   reward   Reward @relation(fields: [rewardId], references: [id])
   rewardId String @db.Uuid
@@ -215,7 +231,7 @@ model Redemption {
 
   pointMovements PointMovement[]
 
-  @@index([clientId, status])
+  @@index([clientBusinessId, status])
   @@index([status, createdAt])
 }
 
@@ -236,12 +252,12 @@ model PointRule {
 }
 
 model QrToken {
-  id        String   @id @default(uuid()) @db.Uuid
-  token     String   @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
   expiresAt DateTime
-  used      Boolean  @default(false)
+  used      Boolean   @default(false)
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   client   Client @relation(fields: [clientId], references: [id])
   clientId String @db.Uuid
@@ -260,5 +276,19 @@ model RefreshToken {
   userId String @db.Uuid
 
   @@index([userId])
+  @@index([token])
+}
+
+model ClientRefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String @db.Uuid
+
+  @@index([clientId])
   @@index([token])
 }
