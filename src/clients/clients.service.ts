@@ -405,7 +405,7 @@ export class ClientsService {
       throw new BadRequestException('Cliente no encontrado');
     }
 
-    const { password: _, ...clientData } = client;
+  const { password: _, clientBusinesses, ...clientData } = client;
 
     return {
       ...clientData,
