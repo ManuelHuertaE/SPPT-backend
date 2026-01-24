@@ -71,6 +71,8 @@ async function main() {
     demoBusiness = await prisma.business.create({
       data: {
         name: 'Demo Business',
+        description: 'Negocio de demostración para pruebas del sistema',
+        address: 'Calle Principal #123, Centro',
         status: 'ACTIVE',
       },
     });

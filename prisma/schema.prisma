@@ -44,10 +44,12 @@ enum TransactionStatus {
 ======================= */
 
 model Business {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  status    String   @default("ACTIVE")
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  address     String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
 
   users            User[]
   clientBusinesses ClientBusiness[]
