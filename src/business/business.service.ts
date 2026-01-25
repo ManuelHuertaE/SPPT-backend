@@ -271,4 +271,27 @@ export class BusinessService {
       },
     };
   }
+
+  /**
+   * Obtener lista de negocios disponibles (público)
+   * No requiere autenticación
+   */
+  async getAvailableBusinesses() {
+    const businesses = await this.prisma.business.findMany({
+      where: {
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        address: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return { businesses };
+  }
 }

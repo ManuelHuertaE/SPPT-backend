@@ -17,11 +17,19 @@ import { UpdateBusinessDto } from './dto/update-business.dto';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
 import { UserRole } from '@prisma/client';
 
 @Controller('business')
 export class BusinessController {
   constructor(private readonly businessService: BusinessService) {}
+
+  // Endpoint público para listar negocios disponibles (para clientes)
+  @Public()
+  @Get('available')
+  getAvailableBusinesses() {
+    return this.businessService.getAvailableBusinesses();
+  }
 
   // SUPER_ADMIN y OWNER pueden crear negocios
   @UseGuards(RolesGuard)

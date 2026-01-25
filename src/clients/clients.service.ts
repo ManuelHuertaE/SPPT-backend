@@ -417,26 +417,4 @@ export class ClientsService {
       })),
     };
   }
-
-  /**
-   * Obtener lista de negocios disponibles para registro
-   */
-  async getAvailableBusinesses() {
-    const businesses = await this.prisma.business.findMany({
-      where: {
-        status: 'ACTIVE',
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        address: true,
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
-
-    return { businesses };
-  }
 }

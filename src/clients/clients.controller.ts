@@ -13,12 +13,6 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Public()
-  @Get('available-businesses')
-  async getAvailableBusinesses() {
-    return this.clientsService.getAvailableBusinesses();
-  }
-
-  @Public()
   @Post('register')
   async register(@Body() registerDto: RegisterClientDto) {
     return this.clientsService.register(registerDto);
