@@ -162,6 +162,13 @@ Ejemplo:
 npx prisma migrate dev --name add-user-name
 ```
 
+#### Paso extra:
+Ejecutar el siguiente comando para actualizar el cliente de Prisma
+
+```bash
+npx prisma generate
+```
+
 ---
 
 ### Producción / Docker

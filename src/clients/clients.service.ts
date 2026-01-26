@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthService } from 'src/auth/auth.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 import { JwtClientPayload } from './strategies/jwt-client.strategy';
 import { randomBytes } from 'crypto';
 import { RegisterClientDto } from './dto/register-client.dto';
@@ -16,17 +17,15 @@ import { RegisterBusinessDto } from './dto/register-business.dto';
 
 @Injectable()
 export class ClientsService {
-  private readonly REFRESH_TOKEN_EXPIRY_DAYS = 30; // 30 días para clientes
+  private readonly REFRESH_TOKEN_EXPIRY_DAYS = 30;
 
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private authService: AuthService,
+    private notificationsService: NotificationsService, // ✅ Inyectar NotificationsService
   ) {}
 
-  /**
-   * Generar access token JWT para cliente
-   */
   generateAccessToken(clientId: string, phone: string, email?: string): string {
     const payload: JwtClientPayload = {
       sub: clientId,
@@ -36,16 +35,10 @@ export class ClientsService {
     return this.jwtService.sign(payload, { expiresIn: '1h' });
   }
 
-  /**
-   * Generar refresh token
-   */
   generateRefreshToken(): string {
     return randomBytes(64).toString('hex');
   }
 
-  /**
-   * Guardar refresh token en la base de datos
-   */
   async saveRefreshToken(clientId: string, token: string) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);
@@ -60,10 +53,16 @@ export class ClientsService {
   }
 
   /**
-   * Registrar nuevo cliente (SIN negocio)
+   * Registrar nuevo cliente (SIN negocio) + enviar código de verificación
    */
   async register(registerDto: RegisterClientDto) {
-    const { name, phone, email, password } = registerDto;
+    let { name, phone, email, password } = registerDto;
+
+
+    console.log(`\n📝 Registrando nuevo cliente...`);
+    console.log(`   Nombre: ${name}`);
+    console.log(`   Teléfono: ${phone}`);
+    console.log(`   Email: ${email || 'No proporcionado'}`);
 
     // Verificar si el cliente ya existe
     const existingClient = await this.prisma.client.findFirst({
@@ -76,10 +75,11 @@ export class ClientsService {
     });
 
     if (existingClient) {
+      console.log('❌ Cliente ya existe');
       throw new ConflictException('Este teléfono o email ya está registrado');
     }
 
-    // Crear cliente SIN negocio
+    // Crear cliente
     const hashedPassword = await this.authService.hashPassword(password);
 
     const client = await this.prisma.client.create({
@@ -88,9 +88,10 @@ export class ClientsService {
         phone,
         email,
         password: hashedPassword,
-        // 👈 NO crear clientBusinesses aquí
       },
     });
+
+    console.log(`✅ Cliente creado con ID: ${client.id}`);
 
     // Generar tokens
     const accessToken = this.generateAccessToken(
@@ -101,6 +102,17 @@ export class ClientsService {
     const refreshToken = this.generateRefreshToken();
     await this.saveRefreshToken(client.id, refreshToken);
 
+    // ✅ Enviar código de verificación automáticamente
+    try {
+      console.log('📤 Enviando código de verificación automáticamente...');
+      await this.notificationsService.requestVerification({ phone: client.phone });
+      console.log('✅ Código de verificación enviado\n');
+    } catch (error) {
+      console.error('⚠️  Error al enviar código de verificación:', error.message);
+      // No fallar el registro si falla el envío del código
+      // El usuario puede solicitar un nuevo código después
+    }
+
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -109,8 +121,10 @@ export class ClientsService {
         name: client.name,
         phone: client.phone,
         email: client.email,
-        businesses: [], // 👈 Array vacío al inicio
+        phoneVerified: false, // Aún no verificado
+        businesses: [],
       },
+      message: 'Registro exitoso. Se ha enviado un código de verificación a tu WhatsApp.',
     };
   }
 

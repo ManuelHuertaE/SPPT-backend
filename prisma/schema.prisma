@@ -79,19 +79,21 @@ model User {
 }
 
 model Client {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  phone     String   @unique //  Teléfono único global
-  email     String?  @unique //  Email único si existe
-  password  String  //  Contraseña para login (opcional si solo usa QR)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  phone         String   @unique
+  email         String?   @unique
+  password      String
+  active        Boolean  @default(true)
+  phoneVerified Boolean  @default(false)  // ✅ Verificación por teléfono
+  emailVerified Boolean  @default(false)  // Opcional: mantener para email también
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  // Relación muchos a muchos con Business
-  clientBusinesses ClientBusiness[]
-  qrTokens         QrToken[]
-  refreshTokens    ClientRefreshToken[]
+  clientBusinesses    ClientBusiness[]
+  qrTokens            QrToken[]
+  refreshTokens       ClientRefreshToken[]
+  verificationCodes   VerificationCode[]
 }
 
 model ClientBusiness {
@@ -293,4 +295,19 @@ model ClientRefreshToken {
 
   @@index([clientId])
   @@index([token])
+}
+
+model VerificationCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    // Código de 6 dígitos
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String    @db.Uuid
+
+  @@index([clientId, used])
+  @@index([code, expiresAt])
 }

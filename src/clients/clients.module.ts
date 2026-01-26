@@ -6,11 +6,13 @@ import { ClientsController } from './clients.controller';
 import { JwtClientStrategy } from './strategies/jwt-client.strategy';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    NotificationsModule,
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',

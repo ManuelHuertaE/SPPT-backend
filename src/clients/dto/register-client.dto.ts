@@ -7,8 +7,8 @@ export class RegisterClientDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[0-9]{10,15}$/, {
-    message: 'El teléfono debe tener entre 10 y 15 dígitos',
+  @Matches(/^\+?[1-9]\d{10,14}$/, {
+    message: 'El teléfono debe ser un número válido (ej: +573121959638 o 3121959638)',
   })
   phone: string;
 
