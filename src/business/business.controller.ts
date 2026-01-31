@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { BusinessService } from './business.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
@@ -20,22 +21,33 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { UserRole } from '@prisma/client';
 
+@ApiTags('Business')
 @Controller('business')
 export class BusinessController {
   constructor(private readonly businessService: BusinessService) {}
 
-  // Endpoint público para listar negocios disponibles (para clientes)
   @Public()
   @Get('available')
+  @ApiOperation({ 
+    summary: 'Obtener negocios disponibles',
+    description: 'Endpoint público que retorna todos los negocios activos disponibles'
+  })
+  @ApiResponse({ status: 200, description: 'Lista de negocios disponibles' })
   getAvailableBusinesses() {
     return this.businessService.getAvailableBusinesses();
   }
 
-  // SUPER_ADMIN y OWNER pueden crear negocios
   @UseGuards(RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER)
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Crear nuevo negocio',
+    description: 'Solo SUPER_ADMIN y OWNER pueden crear negocios'
+  })
+  @ApiResponse({ status: 201, description: 'Negocio creado exitosamente' })
+  @ApiResponse({ status: 403, description: 'No tienes permisos para crear negocios' })
   create(
     @Body(ValidationPipe) createBusinessDto: CreateBusinessDto,
     @CurrentUser('id') requestingUserId: string,
@@ -43,8 +55,13 @@ export class BusinessController {
     return this.businessService.create(createBusinessDto, requestingUserId);
   }
 
-  // Todos los roles pueden listar (filtrado por rol en el service)
   @Get()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Listar negocios',
+    description: 'Retorna todos los negocios según los permisos del usuario'
+  })
+  @ApiResponse({ status: 200, description: 'Lista de negocios' })
   findAll(
     @CurrentUser('role') role: UserRole,
     @CurrentUser('businessId') businessId?: string,
@@ -52,8 +69,16 @@ export class BusinessController {
     return this.businessService.findAll(role, businessId);
   }
 
-  // Todos los roles pueden ver un negocio (validación por rol en el service)
   @Get(':id')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Obtener un negocio específico',
+    description: 'Retorna los detalles de un negocio por su ID'
+  })
+  @ApiParam({ name: 'id', description: 'ID del negocio (UUID)', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Negocio encontrado' })
+  @ApiResponse({ status: 404, description: 'Negocio no encontrado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a este negocio' })
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('role') role: UserRole,
@@ -62,8 +87,16 @@ export class BusinessController {
     return this.businessService.findOne(id, role, businessId);
   }
 
-  // Todos los roles pueden ver estadísticas (validación por rol en el service)
   @Get(':id/stats')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Obtener estadísticas del negocio',
+    description: 'Retorna estadísticas detalladas de un negocio'
+  })
+  @ApiParam({ name: 'id', description: 'ID del negocio (UUID)', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Estadísticas del negocio' })
+  @ApiResponse({ status: 404, description: 'Negocio no encontrado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a este negocio' })
   getStats(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('role') role: UserRole,
@@ -72,10 +105,18 @@ export class BusinessController {
     return this.businessService.getStats(id, role, businessId);
   }
 
-  // SUPER_ADMIN, OWNER y CO_OWNER pueden actualizar negocios
   @UseGuards(RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.CO_OWNER)
   @Patch(':id')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Actualizar un negocio',
+    description: 'Solo SUPER_ADMIN, OWNER y CO_OWNER pueden actualizar negocios'
+  })
+  @ApiParam({ name: 'id', description: 'ID del negocio (UUID)', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Negocio actualizado exitosamente' })
+  @ApiResponse({ status: 403, description: 'No tienes permisos para actualizar negocios' })
+  @ApiResponse({ status: 404, description: 'Negocio no encontrado' })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(ValidationPipe) updateBusinessDto: UpdateBusinessDto,
