@@ -11,6 +11,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { ClientsModule } from './clients/clients.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PointRulesModule } from './point-rules/point-rules.module';
+import { ProductsModule } from './products/products.module';
 
 // 🔍 DEBUG: Verificar que el .env se cargue
 console.log('🔍 DEBUG - Variables de entorno:');
@@ -31,6 +32,7 @@ console.log('   DATABASE_URL:', process.env.DATABASE_URL ? '✅ Configurado' : '
     ClientsModule,
     NotificationsModule,
     PointRulesModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService, {
